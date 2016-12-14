@@ -17,6 +17,13 @@ import Utils
 throwMLError :: (MLError e, TypeMonad m) => e -> m a
 throwMLError = throwError . GenericMLError . formatError
 
+data UnboundedTermError = UnboundedTermError Locations Name
+instance MLError UnboundedTermError where
+  formatError (UnboundedTermError locs name) = 
+    unlines $ [ "Unbounded term " ++ name ++ " found"
+              , "In the expressions: "
+              ] ++ map (indented 2. formatLoc) locs
+
 data UnificationError = UnificationError Locations MLType MLType
 instance MLError UnificationError
 
@@ -44,14 +51,15 @@ s1 <@> s2 = M.foldrWithKey merge s2 s1
       | _ :->: _ <- to   = M.insert from to s2'
       | Concrete x <- to = M.insert from to s2'
     -- Phi x <- from and Phi y <- to
-    merge from to s2' = 
-      case M.lookup to s2' of
-        Just to' -> (M.insert from to' . M.delete to) s2'
-        Nothing  -> M.insert from to s2'
+    merge from to s2' 
+      | Phi to' <- to =
+        case M.lookup to' s2' of
+          Just to'' -> (M.insert from to'' . M.delete from) s2'
+          Nothing   -> M.insert from to s2'
     
 apply :: Subst -> MLType -> MLType
-apply s t@(Phi _) = 
-  fromMaybe t (M.lookup t s)
+apply s t@(Phi v) = 
+  fromMaybe t (M.lookup v s)
 apply s t@(Concrete _) =
   t
 apply s (t1 :->: t2) =
@@ -67,12 +75,12 @@ occurs i (t1 :->: t2) = occurs i t1 || occurs i t2
 
 unify :: TypeMonad m => MLType -> MLType -> m Subst
 unify (Phi x) (Phi y) = 
-  return $ M.singleton (Phi x) (Phi y)
+  return $ M.singleton x (Phi y)
 unify (Concrete c1) (Concrete c2)
   | c1 == c2 = return mempty
 unify (Phi x) t
   | x `occurs` t = getLocs >>= \locs -> throwMLError $ OccursCheckError locs (Phi x) t
-  | otherwise    = return $ M.singleton (Phi x) t
+  | otherwise    = return $ M.singleton x t
 unify t phi@(Phi _) = 
   unify phi t
 unify (a :->: b) (c :->: d) =
@@ -104,43 +112,29 @@ typeLit (LitInt _) =
 typeLit (LitString _) = 
   Concrete "string"
 
-{-
- -       
- - Const -------------
- -        Γ ⊢ c: v(c) 
- -
- -
- - Ax --------------
- -     Γ, x:τ ⊢ x:τ 
- -}
 
-ppml :: TypeMonad m => Expr SrcPos -> m (Context, MLType)
-ppml = run $ \_ exp fixExp ->
-  scoped fixExp $ 
+milner :: TypeMonad m => Expr SrcPos -> m (Subst, MLType)
+milner e = milner' e mempty
+
+milner' :: TypeMonad m => Expr SrcPos -> (Context -> m (Subst, MLType))
+milner' = run $ \_ exp fixExp ctx ->
     case exp of
       Const lit -> return (mempty, typeLit lit)
       Term n ->
-        do t <- freshType
-           return (M.singleton n t, t)
+        case M.lookup n ctx of 
+          Just t  -> return (mempty, t)
+          Nothing -> getLocs >>= \locs -> throwMLError $ UnboundedTermError locs n
       Abs n e ->
-        do (ctx, t) <- e
-           maybe (freshAbsType ctx t) (absType ctx t n) $ M.lookup n ctx
+        do t <- freshType
+           (s1, a) <- e (M.insert n t ctx)
+           return (s1, s1 `apply` (t :->: a))
       App e1 e2 ->
         do t <- freshType
-           (ctx1, t1) <- e1
-           (ctx2, t2) <- e2
-           s1 <- unify t1 (t2 :->: t)
-           s2 <- unifyContexts (s1 `applyContext` ctx1) (s1 `applyContext` ctx2)
-           let s = s2 <@> s1
-               ctx = ctx1 `M.union` ctx2
-           return (s `applyContext` ctx, s `apply` t)
+           (s1, a) <- e1 ctx
+           (s2, b) <- e2 (s1 `applyContext` ctx)
+           s3 <- unify (s2 `apply` a) (b :->: t)
+           return (s3 <@> s2 <@> s1, s3 `apply` t)
   where
-    freshAbsType ctx te =
-      do t <- freshType
-         return (ctx, t :->: te)
-    absType ctx te n t =
-      return (M.delete n ctx, t :->: te)
-
     scoped expr me =
       do enterExpr expr
          r <- me

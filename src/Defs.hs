@@ -48,12 +48,15 @@ type SrcPos = SourcePos
  -}
 
 infixr 5 :->:
-data MLType = Phi Int | Concrete String | MLType :->: MLType
+type MLTVar = Int
+data MLType = Phi MLTVar | Concrete String | MLType :->: MLType | ForAll [MLTVar] MLType
             deriving Eq
 
+{- 
 instance Ord MLType where
   compare (Phi x) (Phi y) = compare x y
   compare _ _             = error "only phi types can be compared"
+-}
 
 instance Show MLType where
   showsPrec _ (Phi n)      = showString ('t':show n)
@@ -62,6 +65,11 @@ instance Show MLType where
     | i > 0     = showString "(" . s . showString ")"
     | otherwise = s
     where s = showsPrec (i + 1) a . showString " -> " . shows b
+  showsPrec i (ForAll tvs v)
+    | i > 0     = showString "(" . s . showString ")"
+    | otherwise = s
+    where s = showString "∀ " . showString (unwords (map (\n -> 't':show n) tvs)) 
+            . showString ". " . shows v 
 
 type Counter   = Int
 type Locations = [Expr SrcPos]
@@ -91,7 +99,7 @@ instance (MonadError GenericMLError m, MonadState TypeState m) => TypeMonad m wh
   leaveExpr =
     modify $ \ts@TypeState { locationStack = _:locs } -> ts { locationStack = locs }
 
-type Subst   = M.Map MLType MLType
+type Subst   = M.Map MLTVar MLType
 type Context = M.Map Name MLType
 
 {-

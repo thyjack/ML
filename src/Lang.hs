@@ -38,7 +38,7 @@ parseTerm = Term <$> parseName
 
 parseAbs :: Parser ExprUnfold
 parseAbs = 
-  do char 'λ'
+  do char 'λ' <|> char '\\'
      n <- parseName
      char '.'
      spaces

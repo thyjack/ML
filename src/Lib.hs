@@ -16,12 +16,12 @@ import Utils
  - Debugging stuff
  -}
 
-Right test1 = parse parseML "<none>" "hello"
-Right test2 = parse parseML "<none>" "(λx. x)"
-Right test3 = parse parseML "<none>" "(λx. (λy. y))"
-Right test4 = parse parseML "<none>" "(λx. x) 3"
-Right test5 = parse parseML "<none>" "(λx. (λy. y)) 5 \"hi\""
-Right test6 = parse parseML "<none>" "λx.(λy.x x y)"
+test1 = "hello"
+test2 = "(λx. x)"
+test3 = "(λx. (λy. y))"
+test4 = "(λx. x) 3"
+test5 = "(λx. (λy. y)) 5 \"hi\""
+test6 = "λx. λy. λz. x z (y z)"
 
 runString = run $ \_ a _ ->
   case a of 
@@ -33,20 +33,20 @@ runString = run $ \_ a _ ->
 instance Show (Expr SrcPos) where
   show = runString
 
-getType :: Expr SrcPos -> Either GenericMLError (Context, MLType)
-getType e = evalStateT (ppml e) (TypeState 0 [])
+getType :: Expr SrcPos -> Either GenericMLError (Subst, MLType)
+getType e = evalStateT (milner e) (TypeState 0 [])
+
+runOneTest test = 
+  do putStrLn $ "test for expression: " ++ show test
+     let result = either undefined getType $ parse parseML "<none>" test
+     case result of
+       Right (c, t) -> do
+         putStrLn $ "substitution: " ++ show c
+         putStrLn $ "type: " ++ show t
+         putStrLn ""
+       Left e -> putStrLn $ (unlines . map (indented 2) . lines . show) e
 
 simpleTest =
   putStrLn "" >>
-  forM_ [test1, test2, test3, test4, test5, test6] (\test -> 
-      do putStrLn $ "test for expression: " ++ show test
-         let result = getType test
-         case result of
-           Right (c, t) -> do
-             putStrLn $ "context: " ++ show c
-             putStrLn "(context should be empty for closed terms)"
-             putStrLn $ "type: " ++ show t
-             putStrLn ""
-           Left e -> putStrLn $ (unlines . map (indented 2) . lines . show) e
-    ) >>
+  forM_ [test1, test2, test3, test4, test5, test6] runOneTest >>
   putStrLn ""
