@@ -86,7 +86,7 @@ class (MonadError GenericMLError m, MonadState TypeState m) => TypeMonad m where
 
 getLocs :: (TypeMonad m) => m Locations
 getLocs = do TypeState { locationStack = locs } <- get
-             return locs
+             return (take 3 locs)
 
 instance (MonadError GenericMLError m, MonadState TypeState m) => TypeMonad m where 
   freshType = 

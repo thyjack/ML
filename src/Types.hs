@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, UndecidableInstances #-}
 module Types where
 
+import Text.Parsec.Pos
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe)
 import qualified Data.Foldable as F
@@ -21,7 +22,7 @@ data UnboundedTermError = UnboundedTermError Locations Name
 instance MLError UnboundedTermError where
   formatError (UnboundedTermError locs name) = 
     unlines $ [ "Unbounded term " ++ name ++ " found"
-              , "In the expressions: "
+              , "In "
               ] ++ map (indented 2. formatLoc) locs
 
 data UnificationError = UnificationError Locations MLType MLType
@@ -31,7 +32,7 @@ instance MLError UnificationError where
               , "  " ++ show t1
               , "and"
               , "  " ++ show t2
-              , "In: "
+              , "In "
               ] ++ map (indented 2. formatLoc) locs
 
 data OccursCheckError = OccursCheckError Locations MLType MLType
@@ -39,16 +40,23 @@ instance MLError OccursCheckError where
   formatError (OccursCheckError locs t1 t2) = 
     unlines $ [ "Occurs check failure: "
               , "  cannot deduce " ++ show t1 ++ " ~ " ++ show t2
-              , "In the expressions: "
+              , "In "
               ] ++ map (indented 2 . formatLoc) locs
 
-formatLoc =
-  run $ \_ expr _ ->
-    case expr of
-      Term n    -> n
-      Const l   -> show l
-      Abs n e   -> concat ["ƛ", n, ". ", e]
-      App e1 e2 -> concat ["(", e1, ")", "(", e2, ")"]
+formatLoc loc = pos ++ " the " ++ desp ++ ' ':exprString
+  where
+    pos = let sp = unZip loc
+           in "(" ++ show (sourceLine sp) ++ ":" ++ show (sourceColumn sp) ++ ")"
+    (exprString, desp) = flip run loc $ \_ expr _ ->
+      case expr of
+        Term n -> 
+          (n, "name")
+        Const l -> 
+          (show l, "constant")
+        Abs n (e,_) -> 
+          (concat ["ƛ", n, ". ", e], "expression")
+        App (e1,_) (e2,_) -> 
+          (concat ["(", e1, ")", "(", e2, ")"], "application")
 
 infixr 5 <@>
 (<@>) :: Subst -> Subst -> Subst
