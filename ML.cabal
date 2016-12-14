@@ -1,14 +1,12 @@
-name:                ts
+name:                ML
 version:             0.1.0.0
-synopsis:            Initial project template from stack
+synopsis:            A ML Proof of Concept Project
 description:         Please see README.md
-homepage:            https://github.com/githubuser/ts#readme
-license:             BSD3
-license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2016 Author name here
-category:            Web
+homepage:            https://github.com/Astral9/ML
+author:              Jack Liu
+maintainer:          me@thejoker.io
+copyright:           2016 Jack Liu
+category:            Misc
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
@@ -19,6 +17,7 @@ library
                      , Lang
                      , Types
                      , Defs
+                     , Utils
   build-depends:       base >= 4.7 && < 5
                      , containers == 0.5.7.1
                      , mtl == 2.2.1
@@ -26,20 +25,20 @@ library
                      , transformers == 0.5.2.0
   default-language:    Haskell2010
 
-executable ts-exe
+executable ml-exe
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
-                     , ts
+                     , ML
   default-language:    Haskell2010
 
-test-suite ts-test
+test-suite ml-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
   build-depends:       base
-                     , ts
+                     , ML
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 

@@ -4,6 +4,7 @@ module Defs where
 
 import qualified Data.Map as M
 import Control.Monad.State
+import Control.Monad.Except
 import Text.ParserCombinators.Parsec (SourcePos)
 
 type Name = String
@@ -17,7 +18,7 @@ instance Functor f => Functor (Fix f) where
 
 run f x = let a = unZip x
               b = unFix x
-           in f a (fmap (run f) b)
+           in f a (fmap (run f) b) x
 
 {-
  - Expressions
@@ -63,19 +64,23 @@ instance Show MLType where
     where s = showsPrec (i + 1) a . showString " -> " . shows b
 
 type Counter   = Int
-type Location  = [Expr SrcPos]
+type Locations = [Expr SrcPos]
 data TypeState = 
   TypeState { counter :: Counter
-            , locationStack :: Location
+            , locationStack :: Locations
             }
 
-class MonadState TypeState m => TypeMonad m where
+class (MonadError GenericMLError m, MonadState TypeState m) => TypeMonad m where
   freshType :: m MLType
   
   enterExpr :: Expr SrcPos -> m ()
   leaveExpr :: m ()
 
-instance MonadState TypeState m => TypeMonad m where 
+getLocs :: (TypeMonad m) => m Locations
+getLocs = do TypeState { locationStack = locs } <- get
+             return locs
+
+instance (MonadError GenericMLError m, MonadState TypeState m) => TypeMonad m where 
   freshType = 
     do ts@TypeState { counter = counter } <- get
        put $ ts { counter = succ counter }
@@ -89,4 +94,10 @@ instance MonadState TypeState m => TypeMonad m where
 type Subst   = M.Map MLType MLType
 type Context = M.Map Name MLType
 
+{-
+ - Exceptions Workaround
+ -}
 
+data GenericMLError = GenericMLError String
+instance Show GenericMLError where
+  show (GenericMLError e) = e

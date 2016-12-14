@@ -12,7 +12,29 @@ import Control.Monad.Except
 import Lang
 import Defs
 import Exceptions
+import Utils
 
+throwMLError :: (MLError e, TypeMonad m) => e -> m a
+throwMLError = throwError . GenericMLError . formatError
+
+data UnificationError = UnificationError Locations MLType MLType
+instance MLError UnificationError
+
+data OccursCheckError = OccursCheckError Locations MLType MLType
+instance MLError OccursCheckError where
+  formatError (OccursCheckError locs t1 t2) = 
+    unlines $ [ "Occurs check failure: "
+              , "  cannot deduce " ++ show t1 ++ " ~ " ++ show t2
+              , "In the expressions: "
+              ] ++ map (indented 2 . formatLoc) locs
+
+formatLoc =
+  run $ \_ expr _ ->
+    case expr of
+      Term n    -> n
+      Const l   -> show l
+      Abs n e   -> concat ["ƛ", n, ". ", e]
+      App e1 e2 -> concat ["(", e1, ")", "(", e2, ")"]
 
 infixr 5 <@>
 (<@>) :: Subst -> Subst -> Subst
@@ -43,13 +65,13 @@ occurs i (Concrete _) = False
 occurs i (Phi n)      = i == n
 occurs i (t1 :->: t2) = occurs i t1 || occurs i t2
 
-unify :: Monad m => MLType -> MLType -> m Subst
+unify :: TypeMonad m => MLType -> MLType -> m Subst
 unify (Phi x) (Phi y) = 
   return $ M.singleton (Phi x) (Phi y)
 unify (Concrete c1) (Concrete c2)
   | c1 == c2 = return mempty
 unify (Phi x) t
-  | x `occurs` t = fail "occurs check failed"
+  | x `occurs` t = getLocs >>= \locs -> throwMLError $ OccursCheckError locs (Phi x) t
   | otherwise    = return $ M.singleton (Phi x) t
 unify t phi@(Phi _) = 
   unify phi t
@@ -58,9 +80,10 @@ unify (a :->: b) (c :->: d) =
      s2 <- unify (s1 `apply` b) (s1 `apply` d)
      return (s2 <@> s1)
 unify t1 t2 = 
-  fail $ concat ["cannot unify type ", show t1, " and ", show t2]
+  getLocs >>= \locs -> throwMLError $ UnificationError locs t1 t2
+  -- fail $ concat ["cannot unify type ", show t1, " and ", show t2]
 
-unifyContexts :: Monad m => Context -> Context -> m Subst
+unifyContexts :: TypeMonad m => Context -> Context -> m Subst
 unifyContexts c1 c2
   | M.null c1 || M.null c2 = return mempty
   | otherwise
@@ -91,29 +114,36 @@ typeLit (LitString _) =
  -     Γ, x:τ ⊢ x:τ 
  -}
 
-ppml :: (Monad m, TypeMonad m, MonadError e m) => Expr SrcPos -> m (Context, MLType)
-ppml = run $ \_ exp ->
-  case exp of
-    Const lit -> return (mempty, typeLit lit)
-    Term n ->
-      do t <- freshType
-         return (M.singleton n t, t)
-    Abs n e ->
-      do (ctx, t) <- e
-         maybe (freshAbsType ctx t) (absType ctx t n) $ M.lookup n ctx
-    App e1 e2 ->
-      do t <- freshType
-         (ctx1, t1) <- e1
-         (ctx2, t2) <- e2
-         s1 <- unify t1 (t2 :->: t)
-         s2 <- unifyContexts (s1 `applyContext` ctx1) (s1 `applyContext` ctx2)
-         let s = s2 <@> s1
-             ctx = ctx1 `M.union` ctx2
-         return (s `applyContext` ctx, s `apply` t)
+ppml :: TypeMonad m => Expr SrcPos -> m (Context, MLType)
+ppml = run $ \_ exp fixExp ->
+  scoped fixExp $ 
+    case exp of
+      Const lit -> return (mempty, typeLit lit)
+      Term n ->
+        do t <- freshType
+           return (M.singleton n t, t)
+      Abs n e ->
+        do (ctx, t) <- e
+           maybe (freshAbsType ctx t) (absType ctx t n) $ M.lookup n ctx
+      App e1 e2 ->
+        do t <- freshType
+           (ctx1, t1) <- e1
+           (ctx2, t2) <- e2
+           s1 <- unify t1 (t2 :->: t)
+           s2 <- unifyContexts (s1 `applyContext` ctx1) (s1 `applyContext` ctx2)
+           let s = s2 <@> s1
+               ctx = ctx1 `M.union` ctx2
+           return (s `applyContext` ctx, s `apply` t)
   where
     freshAbsType ctx te =
       do t <- freshType
          return (ctx, t :->: te)
     absType ctx te n t =
       return (M.delete n ctx, t :->: te)
+
+    scoped expr me =
+      do enterExpr expr
+         r <- me
+         leaveExpr
+         return r
 
