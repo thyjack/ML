@@ -7,8 +7,7 @@ import Debug.Trace
 import Text.ParserCombinators.Parsec
 import Control.Monad ((=<<))
 
-import Utils (Fix (In, unFix, unZip), run)
-import Defs (Name)
+import Defs
 
 data Lit  = LitInt Int
           | LitString String

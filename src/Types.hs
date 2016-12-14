@@ -8,9 +8,8 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Foldable as F
 import Control.Monad.State (MonadState(..))
 
-import Utils
 import Lang (Expr, ML(..), Lit(..))
-import Defs (Name)
+import Defs
 
 infixr 5 :->:
 data MLType = Phi Int | Concrete String | MLType :->: MLType
