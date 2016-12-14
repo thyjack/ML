@@ -25,7 +25,14 @@ instance MLError UnboundedTermError where
               ] ++ map (indented 2. formatLoc) locs
 
 data UnificationError = UnificationError Locations MLType MLType
-instance MLError UnificationError
+instance MLError UnificationError where
+  formatError (UnificationError locs t1 t2) = 
+    unlines $ [ "Cannot unify type:"
+              , "  " ++ show t1
+              , "and"
+              , "  " ++ show t2
+              , "In: "
+              ] ++ map (indented 2. formatLoc) locs
 
 data OccursCheckError = OccursCheckError Locations MLType MLType
 instance MLError OccursCheckError where
@@ -45,7 +52,7 @@ formatLoc =
 
 infixr 5 <@>
 (<@>) :: Subst -> Subst -> Subst
-s1 <@> s2 = M.foldrWithKey merge s2 s1
+s1 <@> s2 = M.foldrWithKey merge (fmap (s1 `apply`) s2) s1
   where 
     merge from to s2'
       | _ :->: _ <- to   = M.insert from to s2'
@@ -54,7 +61,7 @@ s1 <@> s2 = M.foldrWithKey merge s2 s1
     merge from to s2' 
       | Phi to' <- to =
         case M.lookup to' s2' of
-          Just to'' -> (M.insert from to'' . M.delete from) s2'
+          Just to'' -> (M.insert from to'' . M.delete to') s2'
           Nothing   -> M.insert from to s2'
     
 apply :: Subst -> MLType -> MLType
@@ -112,12 +119,15 @@ typeLit (LitInt _) =
 typeLit (LitString _) = 
   Concrete "string"
 
+normaliseType :: MLType -> MLType
+normaliseType = id -- TODO: implement
 
-milner :: TypeMonad m => Expr SrcPos -> m (Subst, MLType)
-milner e = milner' e mempty
+milner :: TypeMonad m => Expr SrcPos -> m MLType
+milner e = normaliseType . snd <$> milner' e mempty
 
 milner' :: TypeMonad m => Expr SrcPos -> (Context -> m (Subst, MLType))
 milner' = run $ \_ exp fixExp ctx ->
+  scoped fixExp $ 
     case exp of
       Const lit -> return (mempty, typeLit lit)
       Term n ->

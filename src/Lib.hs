@@ -33,15 +33,14 @@ runString = run $ \_ a _ ->
 instance Show (Expr SrcPos) where
   show = runString
 
-getType :: Expr SrcPos -> Either GenericMLError (Subst, MLType)
+getType :: Expr SrcPos -> Either GenericMLError MLType
 getType e = evalStateT (milner e) (TypeState 0 [])
 
 runOneTest test = 
   do putStrLn $ "test for expression: " ++ show test
      let result = either undefined getType $ parse parseML "<none>" test
      case result of
-       Right (c, t) -> do
-         putStrLn $ "substitution: " ++ show c
+       Right t -> do
          putStrLn $ "type: " ++ show t
          putStrLn ""
        Left e -> putStrLn $ (unlines . map (indented 2) . lines . show) e
