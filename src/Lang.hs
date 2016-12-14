@@ -1,35 +1,13 @@
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards #-}
-module Lang where
+module Lang (
+  parseML
+) where
 
 import Debug.Trace
 import Text.ParserCombinators.Parsec
 import Control.Monad ((=<<))
 
 import Defs
-
-data Lit  = LitInt Int
-          | LitString String
-
-instance Show Lit where
-  show (LitInt i)    = 'i':show i
-  show (LitString s) = 's':show s
-
-data ML e = Term Name
-          | Const Lit
-          | Abs Name e
-          | App e e
-          | Let Name e e
-          | Fix Name e
-          deriving Functor
-type Expr = Fix ML
-type ExprUnfold = ML (Expr SrcPos)
-
-int = Const . LitInt
-str = Const . LitString
-
-type SrcPos = SourcePos
 
 data ParseOptions = ParseOptions 
   { tryTerm :: Bool

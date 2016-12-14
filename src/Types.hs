@@ -6,41 +6,13 @@ module Types where
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe)
 import qualified Data.Foldable as F
-import Control.Monad.State (MonadState(..))
+import Control.Monad.State (MonadState(..), modify)
+import Control.Monad.Except
 
-import Lang (Expr, ML(..), Lit(..))
+import Lang
 import Defs
+import Exceptions
 
-infixr 5 :->:
-data MLType = Phi Int | Concrete String | MLType :->: MLType
-            deriving Eq
-
-instance Ord MLType where
-  compare (Phi x) (Phi y) = compare x y
-  compare _ _             = error "only phi types can be compared"
-
-instance Show MLType where
-  showsPrec _ (Phi n)      = showString ('t':show n)
-  showsPrec _ (Concrete c) = showString c
-  showsPrec i (a :->: b)
-    | i > 0     = showString "(" . s . showString ")"
-    | otherwise = s
-    where s = showsPrec (i + 1) a . showString " -> " . shows b
-
-type Counter   = Int
-data TypeState = TypeState { counter :: Counter }
-
-class MonadState TypeState m => TypeGen m where
-  freshType :: m MLType
-
-instance MonadState TypeState m => TypeGen m where 
-  freshType = 
-    do ts@TypeState { counter = counter } <- get
-       put $ ts { counter = succ counter }
-       return (Phi counter)
-
-type Subst   = M.Map MLType MLType
-type Context = M.Map Name MLType
 
 infixr 5 <@>
 (<@>) :: Subst -> Subst -> Subst
@@ -119,7 +91,7 @@ typeLit (LitString _) =
  -     Γ, x:τ ⊢ x:τ 
  -}
 
-ppml :: (Monad m, TypeGen m) => Expr a -> m (Context, MLType)
+ppml :: (Monad m, TypeMonad m, MonadError e m) => Expr SrcPos -> m (Context, MLType)
 ppml = run $ \_ exp ->
   case exp of
     Const lit -> return (mempty, typeLit lit)
@@ -138,10 +110,10 @@ ppml = run $ \_ exp ->
          let s = s2 <@> s1
              ctx = ctx1 `M.union` ctx2
          return (s `applyContext` ctx, s `apply` t)
-  
   where
     freshAbsType ctx te =
       do t <- freshType
          return (ctx, t :->: te)
     absType ctx te n t =
       return (M.delete n ctx, t :->: te)
+

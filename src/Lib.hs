@@ -5,7 +5,6 @@ module Lib where
 import Control.Monad.State
 import Text.ParserCombinators.Parsec
 
-import Utils
 import Lang
 import Types
 import Defs
@@ -35,7 +34,7 @@ simpleTest =
   putStrLn "" >>
   forM_ [test1, test2, test3, test4, test5, test6] (\t -> 
       do putStrLn $ "test for expression: " ++ show t
-         (c, t) <- evalStateT (ppml t) (TypeState 0)
+         (c, t) <- evalStateT (ppml t) undefined
          putStrLn $ "context: " ++ show c
          putStrLn "(context should be empty for closed terms)"
          putStrLn $ "type: " ++ show t
