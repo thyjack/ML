@@ -15,19 +15,19 @@ import Defs
 import Exceptions
 import Utils
 
-throwMLError :: (MLError e, TypeMonad m) => e -> m a
-throwMLError = throwError . GenericMLError . formatError
+throwMLError :: (MLError e, TypeMonad m) => (Locations -> e) -> m a
+throwMLError fe = getLocs >>= \locs -> throwError (GenericMLError (formatError (fe locs)))
 
-data UnboundedTermError = UnboundedTermError Locations Name
+data UnboundedTermError = UnboundedTermError Name Locations
 instance MLError UnboundedTermError where
-  formatError (UnboundedTermError locs name) = 
+  formatError (UnboundedTermError name locs) = 
     unlines $ [ "Unbounded term " ++ name ++ " found"
               , "In "
               ] ++ map (indented 2. formatLoc) locs
 
-data UnificationError = UnificationError Locations MLType MLType
+data UnificationError = UnificationError MLType MLType Locations
 instance MLError UnificationError where
-  formatError (UnificationError locs t1 t2) = 
+  formatError (UnificationError t1 t2 locs) = 
     unlines $ [ "Cannot unify type:"
               , "  " ++ show t1
               , "and"
@@ -35,9 +35,9 @@ instance MLError UnificationError where
               , "In "
               ] ++ map (indented 2. formatLoc) locs
 
-data OccursCheckError = OccursCheckError Locations MLType MLType
+data OccursCheckError = OccursCheckError MLType MLType Locations
 instance MLError OccursCheckError where
-  formatError (OccursCheckError locs t1 t2) = 
+  formatError (OccursCheckError t1 t2 locs) = 
     unlines $ [ "Occurs check failure: "
               , "  cannot deduce " ++ show t1 ++ " ~ " ++ show t2
               , "In "
@@ -94,7 +94,7 @@ unify (Phi x) (Phi y) =
 unify (Concrete c1) (Concrete c2)
   | c1 == c2 = return mempty
 unify (Phi x) t
-  | x `occurs` t = getLocs >>= \locs -> throwMLError $ OccursCheckError locs (Phi x) t
+  | x `occurs` t = throwMLError $ OccursCheckError (Phi x) t
   | otherwise    = return $ M.singleton x t
 unify t phi@(Phi _) = 
   unify phi t
@@ -102,9 +102,7 @@ unify (a :->: b) (c :->: d) =
   do s1 <- unify a c
      s2 <- unify (s1 `apply` b) (s1 `apply` d)
      return (s2 <@> s1)
-unify t1 t2 = 
-  getLocs >>= \locs -> throwMLError $ UnificationError locs t1 t2
-  -- fail $ concat ["cannot unify type ", show t1, " and ", show t2]
+unify t1 t2 = throwMLError $ UnificationError t1 t2
 
 unifyContexts :: TypeMonad m => Context -> Context -> m Subst
 unifyContexts c1 c2
@@ -141,7 +139,7 @@ milner' = run $ \_ exp fixExp ctx ->
       Term n ->
         case M.lookup n ctx of 
           Just t  -> return (mempty, t)
-          Nothing -> getLocs >>= \locs -> throwMLError $ UnboundedTermError locs n
+          Nothing -> throwMLError $ UnboundedTermError n
       Abs n e ->
         do t <- freshType
            (s1, a) <- e (M.insert n t ctx)
