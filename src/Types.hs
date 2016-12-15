@@ -53,8 +53,8 @@ formatLoc loc = pos ++ " the " ++ desp ++ ' ':exprString
           (n, "name")
         Const l -> 
           (show l, "constant")
-        Abs n (e,_) -> 
-          (concat ["ƛ", n, ". ", e], "expression")
+        Abs ns (e,_) -> 
+          (concat ["ƛ", unwords ns, ". ", e], "expression")
         App (e1,_) (e2,_) -> 
           (concat ["(", e1, ")", "(", e2, ")"], "application")
 
@@ -125,11 +125,8 @@ typeLit (LitInt _) =
 typeLit (LitString _) = 
   Concrete "string"
 
-normaliseType :: MLType -> MLType
-normaliseType = id -- TODO: implement
-
 milner :: TypeMonad m => Expr SrcPos -> m MLType
-milner e = normaliseType . snd <$> milner' e mempty
+milner e = snd <$> milner' e mempty
 
 milner' :: TypeMonad m => Expr SrcPos -> (Context -> m (Subst, MLType))
 milner' = run $ \_ exp fixExp ctx ->
@@ -140,10 +137,10 @@ milner' = run $ \_ exp fixExp ctx ->
         case M.lookup n ctx of 
           Just t  -> return (mempty, t)
           Nothing -> throwMLError $ UnboundedTermError n
-      Abs n e ->
-        do t <- freshType
-           (s1, a) <- e (M.insert n t ctx)
-           return (s1, s1 `apply` (t :->: a))
+      Abs ns e ->
+        do ts <- mapM (const freshType) ns
+           (s1, a) <- e (foldr (uncurry M.insert) ctx (zip ns ts))
+           return (s1, s1 `apply` foldr (:->:) a ts)
       App e1 e2 ->
         do t <- freshType
            (s1, a) <- e1 ctx

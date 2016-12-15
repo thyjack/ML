@@ -33,7 +33,7 @@ instance Show Lit where
 
 data ML e = Term Name
           | Const Lit
-          | Abs Name e
+          | Abs [Name] e
           | App e e
           | Let Name e e
           | Fix Name e

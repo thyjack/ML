@@ -27,7 +27,7 @@ runString = run $ \_ a _ ->
   case a of 
     Term n    -> n
     Const l   -> show l
-    Abs n e   -> concat ["ƛ", n, ". ", e]
+    Abs ns e  -> concat ["ƛ", unwords ns, ". ", e]
     App e1 e2 -> concat ["(", e1, ")", "(", e2, ")"]
 
 instance Show (Expr SrcPos) where

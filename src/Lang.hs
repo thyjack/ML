@@ -40,10 +40,11 @@ parseAbs :: Parser ExprUnfold
 parseAbs = 
   do char 'λ' <|> char '\\'
      n <- parseName
+     ns <- many (spaces >> parseName)
      char '.'
      spaces
      exp <- parseExpr
-     return (Abs n exp)
+     return (Abs (n:ns) exp)
 
 parseConst :: Parser ExprUnfold
 parseConst = parseInt <|> parseString
