@@ -7,11 +7,11 @@ Todo List (Language wise):
 - [x] Term, Const
 - [x] Application
 - [x] Abstraction
-- [ ] Let and Multi Def Let
-- [ ] Fix
+- [x] Let
+- [ ] Haskell Style Multi Def Let
+- [x] Fix
 - [ ] Pairs, Record Types
 - [ ] Disjoint Union Types
-- [ ] Haskell Style Top Level Definitions
 - [ ] Rule Rewriting (Pattern Matching)
 - [ ] User Defined Operators
 - [ ] Type Classes
