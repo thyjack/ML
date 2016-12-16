@@ -5,7 +5,7 @@ module Lang (
 
 import Debug.Trace
 import Text.ParserCombinators.Parsec
-import Control.Monad ((=<<))
+import Control.Monad ((=<<), forM_)
 
 import Defs
 
@@ -27,24 +27,52 @@ touch p =
      ml <- p
      return (In pos ml)
 
+reserved =
+  [ "λ", "\\"
+  , "ƒ", "fix"
+  , "let", "in"
+  ]
+
+rejectReserved = forM_ reserved (notFollowedBy . string)
+
 parseName :: Parser Name
-parseName = 
-  do c <- letter
+parseName = try $ 
+  do rejectReserved
+     c <- letter
      cs <- many (letter <|> digit <|> char '_')
-     return (c:cs)
+     let name = c:cs
+     return name
 
 parseTerm :: Parser ExprUnfold
 parseTerm = Term <$> parseName
+
+parseExprAfterDot = char '.' >> spaces >> parseExpr
 
 parseAbs :: Parser ExprUnfold
 parseAbs = 
   do char 'λ' <|> char '\\'
      n <- parseName
      ns <- many (spaces >> parseName)
-     char '.'
-     spaces
-     exp <- parseExpr
+     exp <- parseExprAfterDot
      return (Abs (n:ns) exp)
+
+parseFix :: Parser ExprUnfold
+parseFix =
+  do string "ƒ" <|> try (string "fix")
+     spaces
+     n <- parseName
+     exp <- parseExprAfterDot
+     return (Fix n exp)
+
+parseLet :: Parser ExprUnfold
+parseLet =
+  do string "let"
+     n <- spaces >> parseName
+     spaces >> char '='
+     e1 <- spaces >> parseExpr
+     spaces >> string "in"
+     e2 <- spaces >> parseExpr
+     return (Let n e1 e2)
 
 parseConst :: Parser ExprUnfold
 parseConst = parseInt <|> parseString
@@ -82,6 +110,8 @@ parseExpr1 ParseOptions{..} =
   touch ( choice
           [ 
             onOption tryAbs parseAbs
+          , onOption tryLet parseLet
+          , onOption tryFix parseFix
           , onOption tryTerm parseTerm
           , onOption tryConst parseConst
           ]

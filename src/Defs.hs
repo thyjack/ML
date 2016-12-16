@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable #-}
 module Defs where
 
 import qualified Data.Map as M
@@ -48,9 +48,12 @@ type SrcPos = SourcePos
  -}
 
 infixr 5 :->:
+data MLType' a = Phi a | Concrete String | (MLType' a) :->: (MLType' a) | ForAll [MLTVar] (MLType' a)
+               deriving (Eq, Foldable)
+
 type MLTVar = Int
-data MLType = Phi MLTVar | Concrete String | MLType :->: MLType | ForAll [MLTVar] MLType
-            deriving Eq
+type MLType = MLType' MLTVar
+
 
 {- 
 instance Ord MLType where
@@ -71,7 +74,7 @@ instance Show MLType where
     where s = showString "∀ " . showString (unwords (map (\n -> 't':show n) tvs)) 
             . showString ". " . shows v 
 
-type Counter   = Int
+type Counter   = [Int]
 type Locations = [Expr SrcPos]
 data TypeState = 
   TypeState { counter :: Counter
@@ -80,6 +83,7 @@ data TypeState =
 
 class (MonadError GenericMLError m, MonadState TypeState m) => TypeMonad m where
   freshType :: m MLType
+  returnType :: MLTVar -> m ()
   
   enterExpr :: Expr SrcPos -> m ()
   leaveExpr :: m ()
@@ -90,9 +94,10 @@ getLocs = do TypeState { locationStack = locs } <- get
 
 instance (MonadError GenericMLError m, MonadState TypeState m) => TypeMonad m where 
   freshType = 
-    do ts@TypeState { counter = counter } <- get
-       put $ ts { counter = succ counter }
-       return (Phi counter)
+    do ts@TypeState { counter = (n:ns) } <- get
+       put $ ts { counter = ns }
+       return (Phi n)
+  returnType n = modify $ \ts@TypeState { counter = ns } -> ts { counter = n:ns }
 
   enterExpr expr =
     modify $ \ts@TypeState { locationStack = locs } -> ts { locationStack = expr:locs }

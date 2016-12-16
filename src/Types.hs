@@ -57,6 +57,10 @@ formatLoc loc = pos ++ " the " ++ desp ++ ' ':exprString
           (concat ["ƛ", unwords ns, ". ", e], "expression")
         App (e1,_) (e2,_) -> 
           (concat ["(", e1, ")", "(", e2, ")"], "application")
+        Let n (e1,_) (e2,_) ->
+          (concat ["let ", n, " = ", e1, " in ", e2], "let binding")
+        Fix g (e,_) ->
+          (concat ["fix ", g, " . ", e], "fix pointer abstraction")
 
 infixr 5 <@>
 (<@>) :: Subst -> Subst -> Subst
@@ -77,6 +81,8 @@ apply s t@(Phi v) =
   fromMaybe t (M.lookup v s)
 apply s t@(Concrete _) =
   t
+apply s (ForAll ns t) =
+  ForAll ns (apply s t)
 apply s (t1 :->: t2) =
   apply s t1 :->: apply s t2
 
@@ -135,7 +141,7 @@ milner' = run $ \_ exp fixExp ctx ->
       Const lit -> return (mempty, typeLit lit)
       Term n ->
         case M.lookup n ctx of 
-          Just t  -> return (mempty, t)
+          Just t  -> instantiate t >>= \t' -> return (mempty, t')
           Nothing -> throwMLError $ UnboundedTermError n
       Abs ns e ->
         do ts <- mapM (const freshType) ns
@@ -146,8 +152,36 @@ milner' = run $ \_ exp fixExp ctx ->
            (s1, a) <- e1 ctx
            (s2, b) <- e2 (s1 `applyContext` ctx)
            s3 <- unify (s2 `apply` a) (b :->: t)
-           return (s3 <@> s2 <@> s1, s3 `apply` t)
+           let t' = s3 `apply` t
+           recycle t t'
+           return (s3 <@> s2 <@> s1, t')
+      Let n e1 e2 ->
+        do (s1, a) <- e1 ctx
+           let quantified = quantify a
+           (s2, b) <- e2 (M.insert n quantified (s1 `applyContext` ctx))
+           return (s2 <@> s1, s2 `apply` b)
+      Fix g e ->
+        do t <- freshType
+           (s1, a) <- e (M.insert g t ctx)
+           s2 <- unify (s1 `apply` t) a
+           return (s2 <@> s1, s2 `apply` a)
   where
+    instantiate t
+      | ForAll ts t' <- t = 
+        do ts' <- mapM (const freshType) ts
+           let s = foldr (uncurry M.insert) mempty (zip ts ts')
+           return (s `apply` t')
+      | otherwise = return t
+ 
+    quantify t =
+      let ts = foldr (:) [] t
+       in if null ts then t else ForAll ts t
+
+    recycle t ts'
+      | Phi n <- t, not (n `occurs` ts') = 
+        returnType n
+      | otherwise = return ()
+
     scoped expr me =
       do enterExpr expr
          r <- me
