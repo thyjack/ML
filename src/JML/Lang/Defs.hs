@@ -1,34 +1,27 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable #-}
-module Defs where
+module JML.Lang.Defs where
 
 import qualified Data.Map as M
 import Control.Monad.State
 import Control.Monad.Except
 import Text.ParserCombinators.Parsec (SourcePos)
 
+import JML.Utils
+
 type Name = String
-
-data Fix f a = In { unZip :: a, unFix :: f (Fix f a)}
-
-instance Functor f => Functor (Fix f) where
-  fmap g x = let z = unZip x
-                 f = unFix x
-              in In (g z) (fmap (fmap g) f)
-
-run f x = let a = unZip x
-              b = unFix x
-           in f a (fmap (run f) b) x
 
 {-
  - Expressions
  -}
 
-data Lit  = LitInt Int
+data Lit  = LitInt Integer
+          | LitDouble Double
           | LitString String
 
 instance Show Lit where
   show (LitInt i)    = 'i':show i
+  show (LitDouble d) = 'd':show d
   show (LitString s) = 's':show s
 
 data ML e = Term Name

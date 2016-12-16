@@ -1,13 +1,26 @@
 {-# LANGUAGE RecordWildCards #-}
-module Lang (
+module JML.Lang.Parser (
   parseML
 ) where
 
 import Debug.Trace
-import Text.ParserCombinators.Parsec
-import Control.Monad ((=<<), forM_)
+import Text.ParserCombinators.Parsec 
+  ( Parser 
+  , try
+  , getPosition
+  , pzero
+  , char
+  , (<|>)
+  , choice
+  , many
+  , many1
+  , eof
+  )
+import Control.Monad ((=<<), forM_, void)
 
-import Defs
+import JML.Lang.Defs
+import JML.Utils
+import JML.Lang.Lexer
 
 data ParseOptions = ParseOptions 
   { tryTerm :: Bool
@@ -27,67 +40,52 @@ touch p =
      ml <- p
      return (In pos ml)
 
-reserved =
-  [ "λ", "\\"
-  , "ƒ", "fix"
-  , "let", "in"
-  ]
-
-rejectReserved = forM_ reserved (notFollowedBy . string)
-
-parseName :: Parser Name
-parseName = try $ 
-  do rejectReserved
-     c <- letter
-     cs <- many (letter <|> digit <|> char '_')
-     let name = c:cs
-     return name
+infixr 5 <!>
+a <!> b = void a <|> void b
 
 parseTerm :: Parser ExprUnfold
-parseTerm = Term <$> parseName
-
-parseExprAfterDot = char '.' >> spaces >> parseExpr
+parseTerm = Term <$> identifier
 
 parseAbs :: Parser ExprUnfold
 parseAbs = 
-  do char 'λ' <|> char '\\'
-     n <- parseName
-     ns <- many (spaces >> parseName)
-     exp <- parseExprAfterDot
+  do reserved "λ" <!> char '\\'
+     n <- identifier
+     ns <- many (whiteSpace >> identifier)
+     dot
+     exp <- parseExpr
      return (Abs (n:ns) exp)
 
 parseFix :: Parser ExprUnfold
 parseFix =
-  do string "ƒ" <|> try (string "fix")
-     spaces
-     n <- parseName
-     exp <- parseExprAfterDot
+  do reserved "ƒ" <|> reserved "fix"
+     whiteSpace
+     n <- identifier
+     dot
+     exp <- parseExpr
      return (Fix n exp)
 
 parseLet :: Parser ExprUnfold
 parseLet =
-  do string "let"
-     n <- spaces >> parseName
-     spaces >> char '='
-     e1 <- spaces >> parseExpr
-     spaces >> string "in"
-     e2 <- spaces >> parseExpr
+  do reserved "let"
+     n <- identifier
+     reservedOp "="
+     e1 <- parseExpr
+     reserved "in"
+     e2 <- parseExpr
      return (Let n e1 e2)
 
 parseConst :: Parser ExprUnfold
 parseConst = parseInt <|> parseString
   where
-    parseInt    = Const . LitInt . read <$> many1 digit
+    parseInt    = Const . either LitInt LitDouble <$> naturalOrFloat
     parseString = 
-      do char '"'
-         s <- many (noneOf "\"")
-         char '"'
+      do s <- stringLiteral
          return (Const (LitString s))
 
 parseApp :: Parser (Expr SrcPos)
 parseApp =  try $
   do e1 <- parseOperand
-     es <- many1 (spaces >> parseOperand)
+     es <- many1 (whiteSpace >> parseOperand)
      return (buildApp (e1:es))
   where 
     parseOperand = parseExpr1 (defaultParseOptions { tryApp = False })
@@ -95,11 +93,7 @@ parseApp =  try $
     buildApp = foldl1 (\app e -> let p = unZip app in In p (App app e))
 
 parseParen :: Parser (Expr SrcPos)
-parseParen = 
-  do char '('
-     e <- parseExpr
-     char ')'
-     return e
+parseParen = parens parseExpr
 
 parseExpr = parseExpr1 defaultParseOptions
 

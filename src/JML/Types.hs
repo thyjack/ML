@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, UndecidableInstances #-}
-module Types where
+module JML.Types where
 
 import Text.Parsec.Pos
 import qualified Data.Map.Strict as M
@@ -10,10 +10,10 @@ import qualified Data.Foldable as F
 import Control.Monad.State (MonadState(..), modify)
 import Control.Monad.Except
 
-import Lang
-import Defs
-import Exceptions
-import Utils
+import JML.Lang.Parser
+import JML.Lang.Defs
+import JML.Exceptions
+import JML.Utils
 
 throwMLError :: (MLError e, TypeMonad m) => (Locations -> e) -> m a
 throwMLError fe = getLocs >>= \locs -> throwError (GenericMLError (formatError (fe locs)))

@@ -14,11 +14,12 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Lib
-                     , Lang
-                     , Types
-                     , Defs
-                     , Utils
-                     , Intepreter
+                     , JML.Lang.Lexer
+                     , JML.Lang.Parser
+                     , JML.Types
+                     , JML.Intepreter
+                     , JML.Exceptions
+                     , JML.Utils
                      , Exceptions
   build-depends:       base >= 4.7 && < 5
                      , containers == 0.5.7.1

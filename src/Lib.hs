@@ -6,11 +6,11 @@ module Lib where
 import Control.Monad.State
 import Text.ParserCombinators.Parsec
 
-import Lang
-import Types
-import Defs
-import Exceptions
-import Utils
+import JML.Lang.Parser
+import JML.Types
+import JML.Lang.Defs
+import JML.Exceptions
+import JML.Utils
 
 {-
  - Debugging stuff
