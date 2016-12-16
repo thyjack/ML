@@ -50,7 +50,7 @@ parseAbs :: Parser ExprUnfold
 parseAbs = 
   do reserved "λ" <!> char '\\'
      n <- identifier
-     ns <- many (whiteSpace >> identifier)
+     ns <- many identifier
      dot
      exp <- parseExpr
      return (Abs (n:ns) exp)
@@ -58,7 +58,6 @@ parseAbs =
 parseFix :: Parser ExprUnfold
 parseFix =
   do reserved "ƒ" <|> reserved "fix"
-     whiteSpace
      n <- identifier
      dot
      exp <- parseExpr
