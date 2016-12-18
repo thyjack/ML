@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable #-}
 module JML.Lang.Defs where
 
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import Control.Monad.State
 import Control.Monad.Except
 import Text.ParserCombinators.Parsec (SourcePos)
@@ -24,6 +24,7 @@ instance Show Lit where
   show (LitDouble d) = 'd':show d
   show (LitString s) = 's':show s
 
+data MLProg a = MLProg [(Name, Expr a)]
 data ML e = Term Name
           | Const Lit
           | Abs [Name] e
@@ -41,7 +42,10 @@ type SrcPos = SourcePos
  -}
 
 infixr 5 :->:
-data MLType' a = Phi a | Concrete String | (MLType' a) :->: (MLType' a) | ForAll [MLTVar] (MLType' a)
+data MLType' a = Phi a 
+               | Concrete String 
+               | (MLType' a) :->: (MLType' a) 
+               | ForAll [MLTVar] (MLType' a)
                deriving (Eq, Foldable)
 
 type MLTVar = Int
@@ -98,7 +102,6 @@ instance (MonadError GenericMLError m, MonadState TypeState m) => TypeMonad m wh
     modify $ \ts@TypeState { locationStack = _:locs } -> ts { locationStack = locs }
 
 type Subst   = M.Map MLTVar MLType
-type Context = M.Map Name MLType
 
 {-
  - Exceptions Workaround

@@ -1,7 +1,8 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, UndecidableInstances #-}
-module JML.Types where
+module JML.Semantics.Types where
 
 import Text.Parsec.Pos
 import qualified Data.Map.Strict as M
@@ -10,6 +11,10 @@ import qualified Data.Foldable as F
 import Control.Monad.State (MonadState(..), modify)
 import Control.Monad.Except
 
+import Debug.Trace
+
+import JML.Semantics.Context (Context (..))
+import qualified JML.Semantics.Context as C
 import JML.Lang.Parser
 import JML.Lang.Defs
 import JML.Exceptions
@@ -87,7 +92,7 @@ apply s (t1 :->: t2) =
   apply s t1 :->: apply s t2
 
 applyContext :: Subst -> Context -> Context
-applyContext s = fmap (s `apply`)
+applyContext s ctx = ctx { ctxMap = fmap (s `apply`) (ctxMap ctx) }
 
 occurs :: Int -> MLType -> Bool
 occurs i (Concrete _) = False
@@ -111,7 +116,7 @@ unify (a :->: b) (c :->: d) =
 unify t1 t2 = throwMLError $ UnificationError t1 t2
 
 unifyContexts :: TypeMonad m => Context -> Context -> m Subst
-unifyContexts c1 c2
+unifyContexts (ctxMap -> c1) (ctxMap -> c2)
   | M.null c1 || M.null c2 = return mempty
   | otherwise
     = let intersect = M.intersectionWith (,) c1 c2
@@ -132,7 +137,7 @@ typeLit (LitString _) =
   Concrete "string"
 
 milner :: TypeMonad m => Expr SrcPos -> m MLType
-milner e = snd <$> milner' e mempty
+milner e = snd <$> milner' e C.empty
 
 milner' :: TypeMonad m => Expr SrcPos -> (Context -> m (Subst, MLType))
 milner' = run $ \_ exp fixExp ctx ->
@@ -140,12 +145,12 @@ milner' = run $ \_ exp fixExp ctx ->
     case exp of
       Const lit -> return (mempty, typeLit lit)
       Term n ->
-        case M.lookup n ctx of 
+        case C.lookup n ctx of 
           Just t  -> instantiate t >>= \t' -> return (mempty, t')
           Nothing -> throwMLError $ UnboundedTermError n
       Abs ns e ->
         do ts <- mapM (const freshType) ns
-           (s1, a) <- e (foldr (uncurry M.insert) ctx (zip ns ts))
+           (s1, a) <- e (foldr (uncurry C.insert) ctx (zip ns ts))
            return (s1, s1 `apply` foldr (:->:) a ts)
       App e1 e2 ->
         do t <- freshType
@@ -157,12 +162,12 @@ milner' = run $ \_ exp fixExp ctx ->
            return (s3 <@> s2 <@> s1, t')
       Let n e1 e2 ->
         do (s1, a) <- e1 ctx
-           let quantified = quantify a
-           (s2, b) <- e2 (M.insert n quantified (s1 `applyContext` ctx))
+           let quantified = quantify a ctx
+           (s2, b) <- e2 (C.insert n quantified (s1 `applyContext` ctx))
            return (s2 <@> s1, s2 `apply` b)
       Fix g e ->
         do t <- freshType
-           (s1, a) <- e (M.insert g t ctx)
+           (s1, a) <- e (C.insert g t ctx)
            s2 <- unify (s1 `apply` t) a
            return (s2 <@> s1, s2 `apply` a)
   where
@@ -173,8 +178,10 @@ milner' = run $ \_ exp fixExp ctx ->
            return (s `apply` t')
       | otherwise = return t
  
-    quantify t =
-      let ts = foldr (:) [] t
+    quantify t ctx =
+      let ts = foldr (\tv ts' -> 
+                 if tv `C.isFree` ctx then tv:ts' else ts'
+               ) [] t
        in if null ts then t else ForAll ts t
 
     recycle t ts'

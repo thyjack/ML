@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module JML.Lang.Parser (
   parseML
+, parseProg
 ) where
 
 import Debug.Trace
@@ -15,6 +16,9 @@ import Text.ParserCombinators.Parsec
   , many
   , many1
   , eof
+  , noneOf
+  , sepEndBy
+  , spaces
   )
 import Control.Monad ((=<<), forM_, void)
 
@@ -84,7 +88,7 @@ parseConst = parseInt <|> parseString
 parseApp :: Parser (Expr SrcPos)
 parseApp =  try $
   do e1 <- parseOperand
-     es <- many1 (whiteSpace >> parseOperand)
+     es <- many1 (spaces >> parseOperand)
      return (buildApp (e1:es))
   where 
     parseOperand = parseExpr1 (defaultParseOptions { tryApp = False })
@@ -111,4 +115,16 @@ parseExpr1 ParseOptions{..} =
         ) 
   
 parseML = parseExpr <* eof
+
+parseDef :: Parser (Name, Expr SrcPos)
+parseDef =
+  do whiteSpace
+     name <- identifier
+     reservedOp "="
+     exp <- parseExpr
+     return (name, exp)
+
+parseProg :: Parser (MLProg SrcPos)
+parseProg = MLProg <$> sepEndBy parseDef (char ';') <* eof
+
 

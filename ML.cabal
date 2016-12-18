@@ -16,7 +16,8 @@ library
   exposed-modules:     Lib
                      , JML.Lang.Lexer
                      , JML.Lang.Parser
-                     , JML.Types
+                     , JML.Semantics.Types
+                     , JML.Semantics.Context
                      , JML.Intepreter
                      , JML.Exceptions
                      , JML.Utils
