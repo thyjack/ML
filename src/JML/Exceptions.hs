@@ -5,4 +5,3 @@ class MLError e where
   formatError :: e -> String
 
 
-

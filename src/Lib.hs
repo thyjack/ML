@@ -25,10 +25,13 @@ successTests =
   , "(\\x. (\\y. y)) 5 \"hi\""
 
   , "\\x. \\y. \\z. x z (y z)" -- S combinator
+  
   , "fix f. \\y. y" -- equivalent to fix id, assuming fix :: (a -> a) -> a in Haskell
-
   , "let y = \\x. x in y y" -- y has type (forall t0. t0 -> t0), thus can be self applied
+
   , "let x = x in x" -- extension: implicit fix pointer construct
+  , "\\f. let x = f x in x" -- fix combinator in ML 
+
   ]
 
 failTests =

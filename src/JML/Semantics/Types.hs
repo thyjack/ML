@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, UndecidableInstances #-}
 module JML.Semantics.Types where
 
@@ -95,7 +96,9 @@ apply s (t1 :->: t2) =
   apply s t1 :->: apply s t2
 
 applyContext :: Subst -> Context -> Context
-applyContext s ctx = ctx { ctxMap = fmap (s `apply`) (ctxMap ctx) }
+applyContext s MLContext {..} = 
+  let newMap = fmap (s `apply`) ctxMap
+   in C.rebuildContext newMap
 
 occurs :: Int -> MLType -> Bool
 occurs i (Concrete _) = False
@@ -164,14 +167,22 @@ milner' = run $ \_ exp fixExp ctx ->
            recycle t t'
            return (s3 <@> s2 <@> s1, t')
       Let n e1 e2 ->
-        do (s1, a) <- e1 ctx
-           let quantified = quantify a ctx
-           (s2, b) <- e2 (C.insert n quantified (s1 `applyContext` ctx))
-           return (s2 <@> s1, s2 `apply` b)
+        do t <- freshType
+           (s1, a) <- e1 (C.insert n t ctx)
+           let t' = s1 `apply` t
+           s2 <- unify t' a
+           recycle t (s2 `apply` a)
+           let s' = s2 <@> s1
+           let ctx' = s' `applyContext` ctx
+           let quantified = quantify a ctx'
+           (s3, b) <- e2 (C.insert n quantified ctx')
+           return (s3 <@> s', s3 `apply` b)
       Fix g e ->
         do t <- freshType
            (s1, a) <- e (C.insert g t ctx)
-           s2 <- unify (s1 `apply` t) a
+           let t' = s1 `apply` t
+           s2 <- unify t' a
+           recycle t t'
            return (s2 <@> s1, s2 `apply` a)
   where
     instantiate t

@@ -9,16 +9,21 @@ import JML.Utils
 
 data Context = MLContext
   { ctxMap :: M.Map Name MLType
-  , ctxOccurences :: M.Map MLTVar Int
+  , ctxOccurences :: S.IntSet 
   } deriving Show
 
-freeVars :: MLType -> [MLTVar]
-freeVars = S.toList . go
+freeVars :: MLType -> S.IntSet
+freeVars = go
   where
     go (Phi x)       = S.singleton x
     go (Concrete _)  = mempty
     go (a :->: b)    = go a `S.union` go b
     go (ForAll ns a) = foldr S.delete (go a) ns
+
+rebuildContext :: M.Map Name MLType -> Context
+rebuildContext m = 
+  let occurences = foldr (\a -> (freeVars a `S.union`)) S.empty m
+   in MLContext m occurences
 
 empty :: Context
 empty = MLContext mempty mempty
@@ -27,12 +32,11 @@ insert :: Name -> MLType -> Context -> Context
 insert k v MLContext {..} =
   let newMap = M.insert k v ctxMap
       fv = freeVars v
-      newOccurences = 
-        foldr ((flip .) M.insertWith (+) 1) ctxOccurences fv
+      newOccurences = ctxOccurences `S.union` fv
    in MLContext newMap newOccurences
 
 lookup :: Name -> Context -> Maybe MLType
 lookup n = M.lookup n . ctxMap
 
 isFree :: MLTVar -> Context -> Bool
-isFree t MLContext {..} = t `M.notMember` ctxOccurences
+isFree t MLContext {..} = t `S.notMember` ctxOccurences
