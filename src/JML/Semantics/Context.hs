@@ -4,7 +4,8 @@ module JML.Semantics.Context where
 import qualified Data.Map as M
 import qualified Data.IntSet as S
 
-import JML.Lang.Defs
+import JML.Semantics.Defs
+import JML.Utils
 
 data Context = MLContext
   { ctxMap :: M.Map Name MLType

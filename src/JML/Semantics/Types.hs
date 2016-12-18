@@ -15,6 +15,7 @@ import Debug.Trace
 
 import JML.Semantics.Context (Context (..))
 import qualified JML.Semantics.Context as C
+import JML.Semantics.Defs
 import JML.Lang.Parser
 import JML.Lang.Defs
 import JML.Exceptions
@@ -48,24 +49,26 @@ instance MLError OccursCheckError where
               , "In "
               ] ++ map (indented 2 . formatLoc) locs
 
-formatLoc loc = pos ++ " the " ++ desp ++ ' ':exprString
+formatLoc loc = pos ++ " the " ++ desp loc ++ ' ':exprString
   where
     pos = let sp = unZip loc
            in "(" ++ show (sourceLine sp) ++ ":" ++ show (sourceColumn sp) ++ ")"
-    (exprString, desp) = flip run loc $ \_ expr _ ->
+
+    exprString = flip run loc $ \_ expr _ ->
       case expr of
-        Term n -> 
-          (n, "name")
-        Const l -> 
-          (show l, "constant")
-        Abs ns (e,_) -> 
-          (concat ["ƛ", unwords ns, ". ", e], "expression")
-        App (e1,_) (e2,_) -> 
-          (concat ["(", e1, ")", "(", e2, ")"], "application")
-        Let n (e1,_) (e2,_) ->
-          (concat ["let ", n, " = ", e1, " in ", e2], "let binding")
-        Fix g (e,_) ->
-          (concat ["fix ", g, " . ", e], "fix pointer abstraction")
+        Term n      ->  n
+        Const l     ->  show l
+        Abs ns e    ->  concat ["ƛ", unwords ns, ". ", e]
+        App e1 e2   ->  concat ["(", e1, ")", "(", e2, ")"]
+        Let n e1 e2 ->  concat ["let ", n, " = ", e1, " in ", e2]
+        Fix g e     ->  concat ["fix ", g, " . ", e]
+
+    desp (unFix -> Term _)  = "term"
+    desp (unFix -> Const _) = "const"
+    desp (unFix -> Abs {})  = "abstraction"
+    desp (unFix -> App {})  = "application"
+    desp (unFix -> Let {})  = "let binding"
+    desp (unFix -> Fix {})  = "fix pointer expression"
 
 infixr 5 <@>
 (<@>) :: Subst -> Subst -> Subst
@@ -185,8 +188,7 @@ milner' = run $ \_ exp fixExp ctx ->
        in if null ts then t else ForAll ts t
 
     recycle t ts'
-      | Phi n <- t, not (n `occurs` ts') = 
-        returnType n
+      | Phi n <- t, not (n `occurs` ts') = returnType n
       | otherwise = return ()
 
     scoped expr me =

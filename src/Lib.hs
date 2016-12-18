@@ -8,6 +8,7 @@ import Text.ParserCombinators.Parsec
 
 import JML.Lang.Parser
 import JML.Semantics.Types
+import JML.Semantics.Defs
 import JML.Lang.Defs
 import JML.Exceptions
 import JML.Utils

@@ -1,5 +1,7 @@
 module JML.Utils where
 
+type Name = String
+
 data Fix f a = In { unZip :: a, unFix :: f (Fix f a)}
 
 instance Functor f => Functor (Fix f) where
@@ -13,3 +15,4 @@ run f x = let a = unZip x
 
 indented :: Int -> String -> String
 indented n = (replicate n ' ' ++)
+
