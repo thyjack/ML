@@ -144,6 +144,47 @@ typeLit (LitString _) =
 milner :: TypeMonad m => Expr SrcPos -> m MLType
 milner e = snd <$> milner' e C.empty
 
+
+-- | a slightly different version of milner's algorithm
+--
+-- relevent derivations include:
+--
+-- Ax ----------------
+--     Γ, x: A ⊢ x: A 
+--
+-- C --------------
+--    Γ ⊢ c: v(c)
+--
+--        Γ, x: A ⊢ E: B
+-- ->I --------------------
+--      Γ ⊢ \\x. E: A -> B
+--
+--      Γ ⊢ E1: A -> B  Γ ⊢ E2: A 
+-- ->E ---------------------------
+--           Γ ⊢ E1 E2: B
+--
+--      Γ ⊢ E1: A  Γ, x: ∀φ. A ⊢ E2: B
+-- let --------------------------------  (φ not in Γ)
+--         Γ ⊢ let x = E1 in E2: B
+--
+--
+--          Γ ⊢ fix x. E1: A  Γ, x: ∀φ. A ⊢ E2: B
+-- let-rec --------------------------------------  (φ not in Γ)
+--                Γ ⊢ let x = E1 in E2: B
+--
+--      Γ, g: A ⊢ E: A
+-- fix -----------------
+--      Γ ⊢ fix g. E: A
+--
+--       Γ ⊢ E: t
+-- ∀I -------------- (φ not (free) in Γ)
+--     Γ ⊢ E: ∀φ. t
+--
+--     Γ ⊢ E: ∀φ. t
+-- ∀E --------------- (φ not (free) in Γ)
+--     Γ ⊢ E: t[A/φ]
+--
+
 milner' :: TypeMonad m => Expr SrcPos -> (Context -> m (Subst, MLType))
 milner' = run $ \_ exp fixExp ctx ->
   scoped fixExp $ 

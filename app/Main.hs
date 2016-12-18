@@ -1,6 +1,6 @@
 module Main where
 
-import JML.Lib
+import JML
 
 main :: IO ()
 main = simpleTest

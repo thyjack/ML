@@ -7,7 +7,7 @@ Todo List (Language wise):
 - [x] Term, Const
 - [x] Application
 - [x] Abstraction
-- [x] Let
+- [x] Let (incl. implicitly fixed binding)
 - [ ] Haskell Style Multi Def Let
 - [x] Fix
 - [ ] Pairs, Record Types

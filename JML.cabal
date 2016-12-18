@@ -13,7 +13,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     JML.Lib
+  exposed-modules:     JML
                      , JML.Lang.Lexer
                      , JML.Lang.Parser
                      , JML.Semantics.Types
