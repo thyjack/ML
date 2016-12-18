@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
-module Lib where
+module JML.Lib where
 
 import Control.Monad.State
 import Text.ParserCombinators.Parsec

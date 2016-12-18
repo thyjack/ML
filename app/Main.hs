@@ -1,4 +1,6 @@
 module Main where
 
+import JML.Lib
+
 main :: IO ()
-main = undefined
+main = simpleTest
