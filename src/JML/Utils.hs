@@ -16,3 +16,8 @@ run f x = let a = unZip x
 indented :: Int -> String -> String
 indented n = (replicate n ' ' ++)
 
+showParened :: Int -> ShowS -> ShowS
+showParened i s 
+  | i > 0     = showString "(" . s . showString ")"
+  | otherwise = s
+

@@ -40,3 +40,10 @@ lookup n = M.lookup n . ctxMap
 
 isFree :: MLTVar -> Context -> Bool
 isFree t MLContext {..} = t `S.notMember` ctxOccurences
+
+update :: (MLType -> MLType) -> Name -> Context -> Context
+update f n = rebuildContext . M.update (Just . f) n . ctxMap
+
+without :: Name -> Context -> Context
+without n = rebuildContext . M.delete n . ctxMap
+

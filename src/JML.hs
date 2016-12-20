@@ -31,6 +31,10 @@ successTests =
 
   , "let x = x in x" -- extension: implicit fix pointer construct
   , "\\f. let x = f x in x" -- fix combinator in ML 
+  
+  -- multi def let
+  , "let x = y, y = x in x"
+  , "let x = y, y = x in y"
 
   ]
 
@@ -39,21 +43,6 @@ failTests =
   , "fix f. \\y. f" -- occurs check failure: f :: t, and \\y. f :: t0 -> t => cannot unify
   , "\\x. let y = x in y y" -- x has a rigid type t0 => cannot be self applied
   ]
-
-runString = run $ \_ a _ ->
-  case a of 
-    Term n      -> n
-    Const l     -> show l
-    Abs ns e    -> concat ["ƛ", unwords ns, ". ", e]
-    App e1 e2   -> concat ["(", e1, ")", "(", e2, ")"]
-    Let n e1 e2 -> concat ["let ", n, " = ", e1, " in ", e2]
-    Fix g e     -> concat ["fix ", g, " . ", e]
-
-instance Show (Expr SrcPos) where
-  show = runString
-
-instance Show (MLProg SrcPos) where
-  show (MLProg a) = show a
 
 getType :: Expr SrcPos -> Either GenericMLError MLType
 getType e = evalStateT (milner e) (TypeState [0..] [])

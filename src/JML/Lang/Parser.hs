@@ -18,6 +18,7 @@ import Text.ParserCombinators.Parsec
   , eof
   , noneOf
   , sepEndBy
+  , sepBy1
   , spaces
   )
 import Control.Monad ((=<<), forM_, void)
@@ -70,12 +71,16 @@ parseFix =
 parseLet :: Parser ExprUnfold
 parseLet =
   do reserved "let"
-     n <- identifier
-     reservedOp "="
-     e1 <- parseExpr
+     nes <- parseLet1 `sepBy1` comma
      reserved "in"
      e2 <- parseExpr
-     return (Let n e1 e2)
+     return (Let nes e2)
+  where 
+    parseLet1 = 
+      do n <- identifier
+         reservedOp "="
+         e1 <- parseExpr
+         return (n, e1)
 
 parseConst :: Parser ExprUnfold
 parseConst = parseInt <|> parseString

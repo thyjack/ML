@@ -49,19 +49,10 @@ instance MLError OccursCheckError where
               , "In "
               ] ++ map (indented 2 . formatLoc) locs
 
-formatLoc loc = pos ++ " the " ++ desp loc ++ ' ':exprString
+formatLoc loc = pos ++ " the " ++ desp loc ++ ' ':show loc
   where
     pos = let sp = unZip loc
            in "(" ++ show (sourceLine sp) ++ ":" ++ show (sourceColumn sp) ++ ")"
-
-    exprString = flip run loc $ \_ expr _ ->
-      case expr of
-        Term n      ->  n
-        Const l     ->  show l
-        Abs ns e    ->  concat ["ƛ", unwords ns, ". ", e]
-        App e1 e2   ->  concat ["(", e1, ")", "(", e2, ")"]
-        Let n e1 e2 ->  concat ["let ", n, " = ", e1, " in ", e2]
-        Fix g e     ->  concat ["fix ", g, " . ", e]
 
     desp (unFix -> Term _)  = "term"
     desp (unFix -> Const _) = "const"
@@ -206,7 +197,14 @@ milner' = run $ \_ exp fixExp ctx ->
            let t' = s3 `apply` t
            recycle t t'
            return (s3 <@> s2 <@> s1, t')
-      Let n e1 e2 ->
+      Let nes e -> 
+        do ts <- mapM (const freshType) nes
+           let ctx' = foldr (uncurry C.insert) ctx (zip (map fst nes) ts)
+           (s1, ctx'') <- checkLet nes ctx'
+           (s2, t) <- e ctx''
+           return (s2 <@> s1, t)
+           
+{-
         do t <- freshType
            (s1, a) <- e1 (C.insert n t ctx)
            let t' = s1 `apply` t
@@ -217,6 +215,7 @@ milner' = run $ \_ exp fixExp ctx ->
            let quantified = quantify a ctx'
            (s3, b) <- e2 (C.insert n quantified ctx')
            return (s3 <@> s', s3 `apply` b)
+-}
       Fix g e ->
         do t <- freshType
            (s1, a) <- e (C.insert g t ctx)
@@ -225,6 +224,19 @@ milner' = run $ \_ exp fixExp ctx ->
            recycle t t'
            return (s2 <@> s1, s2 `apply` a)
   where
+    checkLet [] ctx = return (mempty, ctx)
+    checkLet ((n,e):nes) ctx = 
+      do (s1, t) <- e ctx
+         let ctx' = s1 `applyContext` ctx
+         s2 <- unify t (fromMaybe undefined $ n `C.lookup` ctx')
+         let ctx'' = s2 `applyContext` ctx'
+         let t' = fromMaybe undefined $ n `C.lookup` ctx''
+         let t'' = quantify t' (n `C.without` ctx'')
+         let s = s2 <@> s1
+         
+         (s', ctx''') <- checkLet nes (C.update (const t'') n ctx'')
+         return (s' <@> s, ctx''')
+
     instantiate t
       | ForAll ts t' <- t = 
         do ts' <- mapM (const freshType) ts
