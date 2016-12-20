@@ -1,4 +1,4 @@
-A proof of concept.
+A proof of concept (of JML - Jack's ML).
 
 **WIP**
 -------
@@ -15,14 +15,17 @@ Todo List (Language wise):
 - [ ] Rule Rewriting (Pattern Matching)
 - [ ] User Defined Operators
 - [ ] Type Classes
-- [ ] ML-Style Classes
-
-Ideas (Not sure if should be implemented):
-- [ ] Local Mutable Variables (Ability to define mutable variables that stays only in the current scope and cannot be captured by closures)
-- [ ] C/C++ Interface
-- [ ] Compilability (Should it be compiled or is it fine to let it run inside an intepreter)
+- [ ] Operators and User Defined Operators
+- [ ] ...
 
 System:
 - [x] Parser
 - [x] Type Checker
-- [ ] Intepreter/Compiler (see above)
+- [ ] Transpiler (to JavaScript! for fun)
+- [ ] Compiler (maybe)
+
+Extensions:
+- [ ] Modules support
+- [ ] REPL
+- [ ] ...
+
