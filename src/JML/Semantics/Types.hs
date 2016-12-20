@@ -203,19 +203,6 @@ milner' = run $ \_ exp fixExp ctx ->
            (s1, ctx'') <- checkLet nes ctx'
            (s2, t) <- e ctx''
            return (s2 <@> s1, t)
-           
-{-
-        do t <- freshType
-           (s1, a) <- e1 (C.insert n t ctx)
-           let t' = s1 `apply` t
-           s2 <- unify t' a
-           recycle t (s2 `apply` a)
-           let s' = s2 <@> s1
-           let ctx' = s' `applyContext` ctx
-           let quantified = quantify a ctx'
-           (s3, b) <- e2 (C.insert n quantified ctx')
-           return (s3 <@> s', s3 `apply` b)
--}
       Fix g e ->
         do t <- freshType
            (s1, a) <- e (C.insert g t ctx)
