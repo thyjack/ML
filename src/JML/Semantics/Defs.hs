@@ -108,6 +108,12 @@ instance Reportable SemanticError where
             , "  cannot deduce " ++ show t1 ++ " ~ " ++ show t2
             ]
 
+formatError :: (SemanticError, Locations) -> String
+formatError (se, locs) = 
+  unlines $ [ report se
+            , "In: "
+            ] ++ map (indented 2 . formatLoc) locs
+
 formatLoc loc = pos ++ " the " ++ desp loc ++ ' ':show loc
   where
     pos = let sp = unZip loc

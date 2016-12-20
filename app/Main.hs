@@ -3,4 +3,4 @@ module Main where
 import JML
 
 main :: IO ()
-main = simpleTest
+main = undefined

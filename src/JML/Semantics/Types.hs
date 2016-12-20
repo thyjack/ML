@@ -20,8 +20,6 @@ import JML.Lang.Defs
 import JML.Exceptions
 import JML.Utils
 
-throwSemanticError = undefined
-
 infixr 5 <@>
 (<@>) :: Subst -> Subst -> Subst
 s1 <@> s2 = M.foldrWithKey merge (fmap (s1 `apply`) s2) s1
