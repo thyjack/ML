@@ -168,7 +168,7 @@ milner e = snd <$> milner' e C.empty
 --         Γ ⊢ let x = E1 in E2: B
 --
 --
---          Γ ⊢ fix x. E1: A  Γ, x: ∀φ. A ⊢ E2: B
+--          Γ, x: φ ⊢ E1: A  Γ, x: ∀φ. A ⊢ E2: B
 -- let-rec --------------------------------------  (φ not in Γ)
 --                Γ ⊢ let x = E1 in E2: B
 --

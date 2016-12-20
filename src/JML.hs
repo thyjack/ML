@@ -42,11 +42,12 @@ failTests =
 
 runString = run $ \_ a _ ->
   case a of 
-    Term n    -> n
-    Const l   -> show l
-    Abs ns e  -> concat ["ƛ", unwords ns, ". ", e]
-    App e1 e2 -> concat ["(", e1, ")", "(", e2, ")"]
-    Fix g e   -> concat ["fix ", g, " . ", e]
+    Term n      -> n
+    Const l     -> show l
+    Abs ns e    -> concat ["ƛ", unwords ns, ". ", e]
+    App e1 e2   -> concat ["(", e1, ")", "(", e2, ")"]
+    Let n e1 e2 -> concat ["let ", n, " = ", e1, " in ", e2]
+    Fix g e     -> concat ["fix ", g, " . ", e]
 
 instance Show (Expr SrcPos) where
   show = runString
