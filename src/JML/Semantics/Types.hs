@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, UndecidableInstances #-}
 module JML.Semantics.Types where
 
-import Text.Parsec.Pos
 import qualified Data.Map.Strict as M
 import Data.Maybe (fromMaybe)
 import qualified Data.Foldable as F
@@ -21,45 +20,7 @@ import JML.Lang.Defs
 import JML.Exceptions
 import JML.Utils
 
-throwMLError :: (MLError e, TypeMonad m) => (Locations -> e) -> m a
-throwMLError fe = getLocs >>= \locs -> throwError (GenericMLError (formatError (fe locs)))
-
-data UnboundedTermError = UnboundedTermError Name Locations
-instance MLError UnboundedTermError where
-  formatError (UnboundedTermError name locs) = 
-    unlines $ [ "Unbounded term " ++ name ++ " found"
-              , "In "
-              ] ++ map (indented 2. formatLoc) locs
-
-data UnificationError = UnificationError MLType MLType Locations
-instance MLError UnificationError where
-  formatError (UnificationError t1 t2 locs) = 
-    unlines $ [ "Cannot unify type:"
-              , "  " ++ show t1
-              , "and"
-              , "  " ++ show t2
-              , "In "
-              ] ++ map (indented 2. formatLoc) locs
-
-data OccursCheckError = OccursCheckError MLType MLType Locations
-instance MLError OccursCheckError where
-  formatError (OccursCheckError t1 t2 locs) = 
-    unlines $ [ "Occurs check failure: "
-              , "  cannot deduce " ++ show t1 ++ " ~ " ++ show t2
-              , "In "
-              ] ++ map (indented 2 . formatLoc) locs
-
-formatLoc loc = pos ++ " the " ++ desp loc ++ ' ':show loc
-  where
-    pos = let sp = unZip loc
-           in "(" ++ show (sourceLine sp) ++ ":" ++ show (sourceColumn sp) ++ ")"
-
-    desp (unFix -> Term _)  = "term"
-    desp (unFix -> Const _) = "const"
-    desp (unFix -> Abs {})  = "abstraction"
-    desp (unFix -> App {})  = "application"
-    desp (unFix -> Let {})  = "let binding"
-    desp (unFix -> Fix {})  = "fix pointer expression"
+throwSemanticError = undefined
 
 infixr 5 <@>
 (<@>) :: Subst -> Subst -> Subst
@@ -101,7 +62,7 @@ unify (Phi x) (Phi y) =
 unify (Concrete c1) (Concrete c2)
   | c1 == c2 = return mempty
 unify (Phi x) t
-  | x `occurs` t = throwMLError $ OccursCheckError (Phi x) t
+  | x `occurs` t = reportError (OccursCheckError (Phi x) t) >> return mempty
   | otherwise    = return $ M.singleton x t
 unify t phi@(Phi _) = 
   unify phi t
@@ -109,7 +70,7 @@ unify (a :->: b) (c :->: d) =
   do s1 <- unify a c
      s2 <- unify (s1 `apply` b) (s1 `apply` d)
      return (s2 <@> s1)
-unify t1 t2 = throwMLError $ UnificationError t1 t2
+unify t1 t2 = reportError (UnificationError t1 t2) >> return mempty
 
 unifyContexts :: TypeMonad m => Context -> Context -> m Subst
 unifyContexts (ctxMap -> c1) (ctxMap -> c2)
@@ -184,7 +145,7 @@ milner' = run $ \_ exp fixExp ctx ->
       Term n ->
         case C.lookup n ctx of 
           Just t  -> instantiate t >>= \t' -> return (mempty, t')
-          Nothing -> throwMLError $ UnboundedTermError n
+          Nothing -> reportErrorF $ UnboundedTermError n
       Abs ns e ->
         do ts <- mapM (const freshType) ns
            (s1, a) <- e (foldr (uncurry C.insert) ctx (zip ns ts))

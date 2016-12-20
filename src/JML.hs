@@ -1,6 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 module JML where
 
 import Control.Monad.State
@@ -44,8 +42,13 @@ failTests =
   , "\\x. let y = x in y y" -- x has a rigid type t0 => cannot be self applied
   ]
 
-getType :: Expr SrcPos -> Either GenericMLError MLType
-getType e = evalStateT (milner e) (TypeState [0..] [])
+getType :: Expr SrcPos -> Either SErrors MLType
+getType e = 
+  case runStateT (milner e) (TypeState [0..] [] []) of
+    Left es -> Left es
+    Right (a, s) ->
+      let TypeState {..} = s
+       in if null errors then Right a else Left errors
 
 pparse = parse parseML "<none>"
 
