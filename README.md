@@ -8,7 +8,7 @@ Todo List (Language wise):
 - [x] Application
 - [x] Abstraction
 - [x] Let (incl. implicitly fixed binding)
-- [ ] Haskell Style Multi Def Let
+- [x] Haskell Style Multi Def Let
 - [x] Fix
 - [ ] Pairs, Record Types
 - [ ] Disjoint Union Types
