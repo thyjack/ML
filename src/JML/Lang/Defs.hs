@@ -61,10 +61,3 @@ instance Show (Expr a) where
 
 type SrcPos = SourcePos
 
-{-
- - Exceptions Workaround
- -}
-
-data GenericMLError = GenericMLError String
-instance Show GenericMLError where
-  show (GenericMLError e) = e

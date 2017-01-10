@@ -27,7 +27,6 @@ s1 <@> s2 = M.foldrWithKey merge (fmap (s1 `apply`) s2) s1
     merge from to s2'
       | _ :->: _ <- to   = M.insert from to s2'
       | Concrete x <- to = M.insert from to s2'
-    -- Phi x <- from and Phi y <- to
     merge from to s2' 
       | Phi to' <- to =
         case M.lookup to' s2' of

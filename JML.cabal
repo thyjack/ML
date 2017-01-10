@@ -20,7 +20,6 @@ library
                      , JML.Semantics.Defs
                      , JML.Semantics.Types
                      , JML.Semantics.Context
-                     , JML.Intepreter
                      , JML.Exceptions
                      , JML.Utils
   build-depends:       base >= 4.7 && < 5

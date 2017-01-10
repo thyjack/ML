@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module JML.Lang.Parser (
   parseML
-, parseProg
+, parseMLProg
 ) where
 
 import Debug.Trace
@@ -129,7 +129,7 @@ parseDef =
      exp <- parseExpr
      return (name, exp)
 
-parseProg :: Parser (MLProg SrcPos)
-parseProg = MLProg <$> sepEndBy parseDef (char ';') <* eof
+parseMLProg :: Parser (MLProg SrcPos)
+parseMLProg = MLProg <$> sepEndBy parseDef (char ';') <* eof
 
 
